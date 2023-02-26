@@ -1,15 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
-import { FC, useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native'
+import { FC, useEffect, useState, useMemo } from 'react';
+import { CommonActions, NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { StyleSheet, View, Image, Text, TouchableOpacity, Button, TextInput, ScrollView } from 'react-native';
+import { StyleSheet, View, Image, Text, TouchableOpacity, Button, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as SecureStore from 'expo-secure-store';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Student } from './models/student_model';
 import StudentsList from './StudentsList';
 import * as ImagePicker from 'expo-image-picker';
 import ChatFeed from './Chat';
-import Login from './Login';
+import Login, { Register } from './Login';
+import { Post } from './models/post_model';
+import { auth_model } from './models/auth_model'
+import React from 'react';
+import PostFeed from './PostsList';
 
 const Home: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
   const [msg, setMsg] = useState('non')
@@ -31,17 +36,25 @@ const Home: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
     }}>
       <Text>{'Home Screen #' + counter}</Text>
       <Button
-        title="Go to Details"
-        onPress={() => navigation.navigate('Details', { newPostId: 123, name: 'testaaaaaa', serial: counter + 1 })}
+        title="LogOut"
+        onPress={auth_model.logout}
       />
       <Button
         title="Go to add student"
         onPress={() => navigation.navigate('AddStudentScreen')}
       />
+      <Button
+        title='Logout'
+      />
     </View>
   );
 }
-const Details: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
+const PostList: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
+  return(
+    <PostFeed route={route} navigation={navigation}/>
+  )
+}
+const PostEditScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
   const [name, setName] = useState<string>(JSON.stringify(route.params?.name))
   const [counter, setCounter] = useState<number>(route.params?.serial)
   const [st, setSt] = useState<Student>(route.params?.st)
@@ -70,40 +83,95 @@ const Details: FC<{ route: any, navigation: any }> = ({ route, navigation }) => 
         style={styles.input}
         value={st.phone}
       />
+      <Button title='Back' onPress={() => { navigation.navigate('') }} />
     </View>
   );
 }
-const Tab = createBottomTabNavigator()
+const PostViewScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
+  const [text, setText] = useState<string>('')
+  const [img, setImg] = useState(require('./assets/o.png'))
+  const [post, setPost] = useState<Post>({ id: '', txt: '', usrId: '', img: './assets/o.png' })
+  //const [st, setSt] = useState<Student>(route.params?.st)
+  useEffect(() => {
+    //navigation.setOptions({ title: counter })
+    if (route.params?.post) {
+      setPost(route.params.post)
+      setText(post.txt)
+      //setImg(require(post.img))
+    }
+  })
+  return (
+    <View style={styles.container}>
+      <Image style={styles.avatar} source={img}></Image>
+      <TextInput
+        style={styles.input}
+        placeholder="text"
+        value={text}
+      />
+      <Button title='Back' onPress={() => { navigation.navigate('StudentsList') }} />
+    </View>
+  );
+}
+const Stack = createNativeStackNavigator();
+
+const AuthStack = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="Login" component={Login} />
+      <Stack.Screen name="Register" component={Register} />
+    </Stack.Navigator>
+  )
+}
+const AppStack = () => {
+  const Tab = createBottomTabNavigator()
+  return (
+    <Tab.Navigator screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+        if (route.name === 'Home') {
+          iconName = focused
+            ? 'information-circle'
+            : 'information-circle-outline';
+        } else if (route.name === 'Details') {
+          iconName = focused ? 'list-circle' : 'list-circle-outline';
+        }
+        // You can return any component that you like here!
+        return <Ionicons size={size} color={color} />;
+        //return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: 'tomato',
+      tabBarInactiveTintColor: 'gray',
+    })}>
+      <Tab.Screen name="Home" component={Home} options={{ title: 'Home' }} />
+      <Tab.Screen name="Details" component={PostViewScreen} options={{ title: 'Post Details' }} />
+      <Tab.Screen name="AddStudentScreen" component={AddStudentScreen} options={{ title: 'Add Student' }} />
+      <Tab.Screen name="StudentsList" component={StudentsList} options={{ title: 'Students list' }} />
+      <Tab.Screen name="Messages" component={ChatFeed} options={{ title: 'Chat' }} />
+      <Tab.Screen name="Posts" component={PostFeed} options={{ title: 'Posts' }} />
+    </Tab.Navigator>
+  )
+}
+const Loading = (message: string) => {
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        backgroundColor: 'red'
+      }}>
+      <ActivityIndicator animating={true} size="large" />
+    </View>
+  );
+};
 const App: FC = () => {
-  const Stack = createNativeStackNavigator()
+  const [logged, setLogged] = useState(false)
+  const [loading, setLoading] = useState(true)
+  auth_model.init(setLogged).then((flag) => { if (flag) setLoading(false) })
+  if (loading) return Loading('main')
   return (
     <NavigationContainer>
-      <Tab.Navigator screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === 'Home') {
-            iconName = focused
-              ? 'information-circle'
-              : 'information-circle-outline';
-          } else if (route.name === 'Details') {
-            iconName = focused ? 'list-circle' : 'list-circle-outline';
-          }
-          // You can return any component that you like here!
-          return <Ionicons size={size} color={color} />;
-          //return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: 'tomato',
-        tabBarInactiveTintColor: 'gray',
-      })}>
-        <Tab.Screen name="Home" component={Home} options={{ title: 'Home' }} />
-        <Tab.Screen name="Details" component={Details} options={{ title: 'Details' }}/>
-        <Tab.Screen name="AddStudentScreen" component={AddStudentScreen} options={{ title: 'Add Student' }} />
-        <Tab.Screen name="StudentsList" component={StudentsList} options={{ title: 'Students list' }} />
-        <Tab.Screen name="Messages" component={ChatFeed} options={{ title: 'Chat' }} />
-        <Tab.Screen name="Login" component={Login} options={{ title: 'Login' }} />
-      </Tab.Navigator>
+      {logged == true ? <AppStack /> : <AuthStack />}
     </NavigationContainer>
-
   )
 }
 const AddStudentScreen: FC = () => {
@@ -114,50 +182,50 @@ const AddStudentScreen: FC = () => {
   const onText3Change = () => { }
   const [text3, setText3] = useState('text 3')
   const pressHandler = () => { alert('pressHandler') }
-  const [imageUri,setImageUri] = useState()
-  const askPermition = async ()=>{
-    try{
+  const [imageUri, setImageUri] = useState()
+  const askPermition = async () => {
+    try {
       const res = await ImagePicker.requestCameraPermissionsAsync()
-      if(!res.granted){
+      if (!res.granted) {
         console.log("no permissions!")
       }
-    } catch(err){
+    } catch (err) {
 
     }
   }
-  useEffect( ()=>{
+  useEffect(() => {
     askPermition()
   })
   return (
     <ScrollView>
-    <View style={styles.container}>
+      <View style={styles.container}>
 
-      <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
-      <TextInput
-        style={styles.input}
-        onChangeText={onText1Change}
-        placeholder="input name"
-        value={text1}
-      />
-      <TextInput
-        style={styles.input}
-        onChangeText={onText2Change}
-        value={text2}
-      />
-      <TextInput
-        style={styles.input}
-        onChangeText={onText3Change}
-        value={text3}
-      />
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.button} onPress={pressHandler}>
-          <Text style={styles.buttonText}>OK</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={pressHandler}>
-          <Text style={styles.buttonText}>CANCEL</Text>
-        </TouchableOpacity>
+        <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
+        <TextInput
+          style={styles.input}
+          onChangeText={onText1Change}
+          placeholder="input name"
+          value={text1}
+        />
+        <TextInput
+          style={styles.input}
+          onChangeText={onText2Change}
+          value={text2}
+        />
+        <TextInput
+          style={styles.input}
+          onChangeText={onText3Change}
+          value={text3}
+        />
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity style={styles.button} onPress={pressHandler}>
+            <Text style={styles.buttonText}>OK</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={pressHandler}>
+            <Text style={styles.buttonText}>CANCEL</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
     </ScrollView>
   )
 }
@@ -200,9 +268,9 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     alignSelf: 'center'
   },
-  cameraButton:{
+  cameraButton: {
     position: 'absolute',
-    
+
   },
   input: {
     height: 40,
