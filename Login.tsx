@@ -1,7 +1,10 @@
 import { FC, useEffect, useState, useContext } from "react"
-import { Button, View, Alert, Text, TextInput, StyleSheet, TouchableOpacity, ImageBackground, Image, TouchableHighlight, Dimensions, ScrollView, ToastAndroid, ActivityIndicator } from "react-native"
+import { Button, View, Alert, Text, TextInput, StyleSheet, TouchableOpacity, ImageBackground, Image, TouchableHighlight, Dimensions, ScrollView, ToastAndroid, ActivityIndicator, Modal } from "react-native"
 import user_api from "./api/user_api";
 import { auth_model } from './models/auth_model'
+import * as ImagePicker from 'expo-image-picker';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import user_model from "./models/user_model";
 const validateEmail = (email: string) => {
     return String(email)
         .toLowerCase()
@@ -111,26 +114,76 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
     const [email, setEmail] = useState<string>('')
     const [phone, setPhone] = useState<string>('')
     const [password, setPass] = useState<string>('')
+    const [modalVisible, setModalVisible] = useState(false)
+    const [imgUri, setImgUri] = useState('')
     const [confPassword, setConfPassword] = useState<string>('')
     const loadImg = () => { Alert.alert('TO-DO', 'load image') }
-    const onRegisterPressed = () => {
+    const askPermition = async () => {
+        try {
+            const res = await ImagePicker.requestCameraPermissionsAsync()
+            if (!res.granted) {
+                console.log("no permissions!")
+            }
+        } catch (err) {
+
+        }
+    }
+    const openCamera = async () => {
+        setModalVisible(false);
+        try {
+            const res = await ImagePicker.launchCameraAsync();
+            if (!res.canceled && res.assets.length > 0) {
+                const uri = res.assets[0].uri;
+                setImgUri(uri);
+            }
+        } catch (err) {
+            console.log("Open camera failed");
+        }
+    };
+
+    const openGallery = async () => {
+        setModalVisible(false);
+        try {
+            const res = await ImagePicker.launchImageLibraryAsync();
+            if (!res.canceled && res.assets.length > 0) {
+                const uri = res.assets[0].uri;
+                setImgUri(uri);
+            }
+        } catch (err) {
+            console.log("Open gallery failed");
+        }
+    };
+    const onRegisterPressed = async () => {
         //Check input: 
         setLoading(true)
         let txt = ''
+        let url
         if (name.length < 2) txt += 'name, '
         if (!validatePass(password)) txt += 'password, '
         if (!validateEmail(email)) txt += 'email, '
         if (password != confPassword) txt += 'passwords not match, '
         if (!validatePhone(phone)) txt += 'phone, '
         if (txt === '') {
-            // Add spinner and connect to model.
-            // if success:
+            if (imgUri == '') {
+                // Default img
+                url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
+            }
+            else {
+                //user Image
+                try {
+                    url = await user_model.uploadImage(imgUri)
+                }
+                catch (err) {
+                    console.log('Failed to upload img')
+                    url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
+                }
+            }
             user_api.registerUser({
                 email: email,
                 password: password,
                 phone: phone,
                 name: name,
-                img: '123'
+                img: url
             }).then((res: any) => {
                 setLoading(false)
                 if (res.status == 200)
@@ -147,8 +200,33 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
     return (
         <ScrollView>
             <View style={styles.container}>
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalVisible}
+                    onRequestClose={() => {
+                        setModalVisible(!modalVisible);
+                    }}
+                >
+                    <View style={styles.modalView}>
+                        <TouchableOpacity
+                            style={{ alignItems: "center" }}
+                            onPress={openGallery}
+                        >
+                            <Ionicons name="images" size={80} color={'red'} />
+                            <Text style={{ color: 'green' }}>Gallery</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ alignItems: "center" }}
+                            onPress={openCamera}
+                        >
+                            <Ionicons name="camera" size={80} color={'green'} />
+                            <Text style={{ color: 'green' }}>Camera</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Modal>
                 <ActivityIndicator animating={loading} size="large" />
-                <TouchableHighlight onPress={loadImg}>
+                <TouchableHighlight onPress={() => setModalVisible(true)}>
                     <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
                 </TouchableHighlight>
                 <TextInput
@@ -265,5 +343,16 @@ const styles = StyleSheet.create({
         aspectRatio: 1,
         justifyContent: 'center',
         alignSelf: 'center'
+    },
+    modalView: {
+        flexDirection: "row",
+        backgroundColor: 'gray',
+        height: 140,
+        position: "absolute",
+        bottom: 5,
+        width: "100%",
+        borderRadius: 20,
+        alignItems: "center",
+        justifyContent: "space-around",
     },
 })

@@ -26,9 +26,7 @@ const login = async (username: string, password: string) => {
         email: username,
         password: password,
     }
-    console.log("user: " + username)
     const res: any = await user_api.loginUser(userData)
-    console.log("ggggg" + JSON.stringify(res))
     if (res.status == 200) {
         data = {
             accToken: res.data.accessToken,
@@ -73,12 +71,8 @@ function delay(ms: number) {
 }
 const init = async (setter: (f: boolean) => void) => {
     loggedSetter = setter
-    console.log("Before")
     loadStorageData()
-    console.log("after")
     return true
 }
-const register = async () => {
 
-}
-export const auth_model = { init, login, logout, register }
+export const auth_model = { init, login, logout }

@@ -8,10 +8,10 @@ import { Student } from './models/student_model';
 
 const sts = student_model.getAllStudents()
 const StudentsList: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-    const [data, setData] = useState<Array<Post>>(post_model.getAllPosts())
+    const [data, setData] = useState<Array<Post>>([])
     useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', ()=> {
-            setData(post_model.getAllPosts())
+        const unsubscribe = navigation.addListener('focus', async ()=> {
+            setData(await post_model.getAllPosts())
         })
         return unsubscribe
     },[navigation])

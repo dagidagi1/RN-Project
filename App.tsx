@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { StyleSheet, View, Image, Text, TouchableOpacity, Button, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as SecureStore from 'expo-secure-store';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Ionicons } from '@expo/vector-icons';
 import { Student } from './models/student_model';
 import StudentsList from './StudentsList';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +15,8 @@ import { Post } from './models/post_model';
 import { auth_model } from './models/auth_model'
 import React from 'react';
 import PostFeed from './PostsList';
+import AddPostScreen from './AddPostScreen';
+import PostsScreen from './PostsScreen';
 
 const Home: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
   const [msg, setMsg] = useState('non')
@@ -49,11 +51,6 @@ const Home: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
     </View>
   );
 }
-const PostList: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-  return(
-    <PostFeed route={route} navigation={navigation}/>
-  )
-}
 const PostEditScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
   const [name, setName] = useState<string>(JSON.stringify(route.params?.name))
   const [counter, setCounter] = useState<number>(route.params?.serial)
@@ -87,31 +84,7 @@ const PostEditScreen: FC<{ route: any, navigation: any }> = ({ route, navigation
     </View>
   );
 }
-const PostViewScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-  const [text, setText] = useState<string>('')
-  const [img, setImg] = useState(require('./assets/o.png'))
-  const [post, setPost] = useState<Post>({ id: '', txt: '', usrId: '', img: './assets/o.png' })
-  //const [st, setSt] = useState<Student>(route.params?.st)
-  useEffect(() => {
-    //navigation.setOptions({ title: counter })
-    if (route.params?.post) {
-      setPost(route.params.post)
-      setText(post.txt)
-      //setImg(require(post.img))
-    }
-  })
-  return (
-    <View style={styles.container}>
-      <Image style={styles.avatar} source={img}></Image>
-      <TextInput
-        style={styles.input}
-        placeholder="text"
-        value={text}
-      />
-      <Button title='Back' onPress={() => { navigation.navigate('StudentsList') }} />
-    </View>
-  );
-}
+
 const Stack = createNativeStackNavigator();
 
 const AuthStack = () => {
@@ -127,27 +100,39 @@ const AppStack = () => {
   return (
     <Tab.Navigator screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
-        let iconName;
-        if (route.name === 'Home') {
-          iconName = focused
-            ? 'information-circle'
-            : 'information-circle-outline';
-        } else if (route.name === 'Details') {
-          iconName = focused ? 'list-circle' : 'list-circle-outline';
+        let iconName: any;
+        switch (route.name) {
+          case 'Home':
+            iconName = focused ? 'home' : 'home-outline';
+            break;
+          case 'Details':
+            iconName = focused ? 'information-circle' : 'information-circle-outline';
+            break;
         }
+        // if (route.name === 'Home') {
+        //   iconName = focused ? 'information-circle' : 'information-circle-outline';
+        // } else if (route.name === 'Details') {
+        //   iconName = focused ? "home" : "home-outline";
+        // }
         // You can return any component that you like here!
-        return <Ionicons size={size} color={color} />;
+        return <Ionicons name={iconName} size={size} color={color} />;
         //return <Ionicons name={iconName} size={size} color={color} />;
       },
-      tabBarActiveTintColor: 'tomato',
+      tabBarActiveTintColor: '#884DFF',
       tabBarInactiveTintColor: 'gray',
-    })}>
-      <Tab.Screen name="Home" component={Home} options={{ title: 'Home' }} />
-      <Tab.Screen name="Details" component={PostViewScreen} options={{ title: 'Post Details' }} />
-      <Tab.Screen name="AddStudentScreen" component={AddStudentScreen} options={{ title: 'Add Student' }} />
-      <Tab.Screen name="StudentsList" component={StudentsList} options={{ title: 'Students list' }} />
+    })
+    }>
+      <Tab.Screen name="Home" component={Home} options={{
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => alert('This is a button!')}
+            style={{ backgroundColor: 'red' }}
+          ><Text>{'asdas'}</Text></TouchableOpacity>
+        ),
+      }} />
       <Tab.Screen name="Messages" component={ChatFeed} options={{ title: 'Chat' }} />
-      <Tab.Screen name="Posts" component={PostFeed} options={{ title: 'Posts' }} />
+      <Tab.Screen name="Posts" component={PostsScreen} options={{ title: 'Posts' }} />
+      <Tab.Screen name="AddPost" component={AddPostScreen} options={{ title: 'Add Post' }} />
     </Tab.Navigator>
   )
 }
@@ -266,7 +251,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     height: 200,
     resizeMode: 'contain',
-    alignSelf: 'center'
+    alignSelf: 'center',
+    aspectRatio: 1
   },
   cameraButton: {
     position: 'absolute',
