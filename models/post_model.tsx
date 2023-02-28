@@ -58,7 +58,7 @@ const getAllPosts = async () => {
             posts.push(p)
         })
     }
-    return posts
+    return posts.reverse()
 }
 const getMyPosts = async () => {
     const allPosts: Array<Post> = await getAllPosts()

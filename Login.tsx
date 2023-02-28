@@ -110,14 +110,30 @@ const Login: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
 }
 export const Register: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
     const [loading, setLoading] = useState<boolean>(false)
+    const [editMode, setEditMode] = useState<boolean>(false)
     const [name, setName] = useState<string>('')
     const [email, setEmail] = useState<string>('')
     const [phone, setPhone] = useState<string>('')
     const [password, setPass] = useState<string>('')
     const [modalVisible, setModalVisible] = useState(false)
     const [imgUri, setImgUri] = useState('')
+    const [newPhotoFlag, setNewPhotoFlag] = useState<boolean>(false)
     const [confPassword, setConfPassword] = useState<string>('')
-    const loadImg = () => { Alert.alert('TO-DO', 'load image') }
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            askPermition()
+            if (route.params?.editFlag) {
+                setEditMode(true)
+                setName(route.params?.username)
+                setImgUri(route.params?.avatarUri)
+                setEmail(route.params?.email)
+                setPhone(route.params?.phone)
+                setNewPhotoFlag(false)
+            }
+        })
+        return unsubscribe
+    }, [navigation])
+
     const askPermition = async () => {
         try {
             const res = await ImagePicker.requestCameraPermissionsAsync()
@@ -135,12 +151,12 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
             if (!res.canceled && res.assets.length > 0) {
                 const uri = res.assets[0].uri;
                 setImgUri(uri);
+                setNewPhotoFlag(true)
             }
         } catch (err) {
             console.log("Open camera failed");
         }
-    };
-
+    }
     const openGallery = async () => {
         setModalVisible(false);
         try {
@@ -148,54 +164,80 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
             if (!res.canceled && res.assets.length > 0) {
                 const uri = res.assets[0].uri;
                 setImgUri(uri);
+                setNewPhotoFlag(true)
             }
         } catch (err) {
             console.log("Open gallery failed");
         }
-    };
-    const onRegisterPressed = async () => {
-        //Check input: 
-        setLoading(true)
+    }
+    const checkPass = () => {
+        let txt = ''
+        if (!validatePass(password)) txt += 'password, '
+        if (password != confPassword) txt += 'passwords not match, '
+        return txt
+    }
+    const checkInput = () => {
         let txt = ''
         let url
         if (name.length < 2) txt += 'name, '
-        if (!validatePass(password)) txt += 'password, '
         if (!validateEmail(email)) txt += 'email, '
-        if (password != confPassword) txt += 'passwords not match, '
+        if (!editMode) txt += checkPass()
         if (!validatePhone(phone)) txt += 'phone, '
-        if (txt === '') {
-            if (imgUri == '') {
-                // Default img
-                url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
+        return txt
+    }
+    const onEditPressed = async () => {
+        setLoading(true)
+        let successFlag: boolean = false
+        let url = ''
+        let data = { 'name': name, 'phone': phone, 'email': email }
+        if (password != '' && checkPass() == '') {
+            Object.assign(data, { 'password': password })
+        }
+        if (newPhotoFlag) {
+            try {
+                url = await user_model.uploadImage(imgUri)
+                Object.assign(data, { 'img': url })
             }
-            else {
-                //user Image
-                try {
-                    url = await user_model.uploadImage(imgUri)
-                }
+            catch (err) {
+                console.log('Failed to upload img')
+            }
+        }
+        successFlag = await user_model.editUser(data)
+        setLoading(false)
+        if (successFlag) {
+            ToastAndroid.show("Edited!", ToastAndroid.LONG)
+        }
+        else
+            ToastAndroid.show("Post Edit Failed!", ToastAndroid.LONG)
+        navigation.goBack()
+    }
+    const onRegisterPressed = async () => {
+        //Check input: 
+        const inputErrMessage = checkInput()
+        if (inputErrMessage === '') {
+            setLoading(true)
+            let url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg' // Default Image
+            if (imgUri != '') { // User Image
+                try { url = await user_model.uploadImage(imgUri) }
                 catch (err) {
                     console.log('Failed to upload img')
-                    url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
                 }
             }
-            user_api.registerUser({
+            const res: any = await user_api.registerUser({
                 email: email,
                 password: password,
                 phone: phone,
                 name: name,
                 img: url
-            }).then((res: any) => {
-                setLoading(false)
-                if (res.status == 200)
-                    navigation.navigate('Login', { email: email, pass: password })
-                else
-                    ToastAndroid.show(res.data.message, ToastAndroid.LONG)
             })
-        }
-        else {
-            ToastAndroid.show('Invalid ' + txt, ToastAndroid.LONG)
             setLoading(false)
+            if (res.status == 200)
+                navigation.navigate('Login', { email: email, pass: password })
+            else
+                ToastAndroid.show(res.data.message, ToastAndroid.LONG)
         }
+        else
+            ToastAndroid.show('Wrong: ' + inputErrMessage, ToastAndroid.LONG)
     }
     return (
         <ScrollView>
@@ -227,7 +269,12 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
                 </Modal>
                 <ActivityIndicator animating={loading} size="large" />
                 <TouchableHighlight onPress={() => setModalVisible(true)}>
-                    <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
+                    {editMode ? (
+                        <Image style={styles.avatar} source={{ uri: imgUri }}></Image>
+                    ) : (
+                        <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
+
+                    )}
                 </TouchableHighlight>
                 <TextInput
                     style={styles.input}
@@ -262,10 +309,12 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
                     onChangeText={setConfPassword}
                 />
                 <View style={styles.buttonContainer}>
-                    <Button
-                        title="Register"
-                        onPress={onRegisterPressed}
-                    />
+                    {editMode ? (
+                        <Button title="Edit" onPress={onEditPressed} />
+                    ) : (
+                        <Button title="Register" onPress={onRegisterPressed} />
+                    )}
+                    <Button title="Back" onPress={navigation.goBack} />
                 </View>
             </View>
         </ScrollView>

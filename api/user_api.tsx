@@ -1,6 +1,7 @@
 import clisentApi from './client_api';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthData } from '../models/auth_model';
+import clientApi from './client_api';
 const getAuthData = async ()=>{
     try {
         const authDataSerialized = await AsyncStorage.getItem('@AuthData');
@@ -24,11 +25,13 @@ const loginUser = async(authJson: any) => {
 }
 
 const logoutUser = async(refreshToken: any) => {
-    return await clisentApi.get("/auth/logout", {}, {headers: {"Authorization": "JWT " + refreshToken}})
+    return await clisentApi.post("/auth/logout", {}, {headers: {"Authorization": "JWT " + refreshToken}})
 }
 const getUser = async(id:String) => {
-    //authData = await getAuthData()
     const x = await clisentApi.get("/usr", {id: id}) // add auth header.
     return x // add auth header.
 }
-export default { registerUser, loginUser, logoutUser ,getUser}
+const editUser = async (id: String, data: Object, accessToken: string) => {
+    return clientApi.put("/usr/" + id, { params: data }, { headers: { "Authorization": "JWT " + accessToken } })
+}
+export default { registerUser, loginUser, logoutUser ,getUser, editUser}

@@ -80,6 +80,7 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
             ToastAndroid.show("Post uploaded!", ToastAndroid.LONG)
         }
         setLoading(false)
+        navigation.goBack()
     }
     const editPost = async () => {
         setLoading(true)
@@ -125,6 +126,10 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
                 setText(route.params?.txt)
                 setImgUri(route.params?.img)
                 setPostId(route.params?.postId)
+            }
+            else{
+                setImgUri('')
+                setText('')
             }
         })
         return unsubscribe

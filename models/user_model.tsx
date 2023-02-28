@@ -1,11 +1,34 @@
 import userApi from "../api/user_api";
 import FormData from "form-data";
 import clientApi from "../api/client_api";
+import { AuthData } from "./auth_model";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 export type User = {
   name: String,
   email: String,
   img: String,
-  id: String
+  id: String,
+  phone: String,
+}
+
+let authData: AuthData 
+const loadStorageData = async () => {
+  try {
+      const authDataSerialized = await AsyncStorage.getItem('@AuthData');
+      if (authDataSerialized) {
+          authData = JSON.parse(authDataSerialized);
+          return JSON.parse(authDataSerialized);
+      }
+      else
+          console.log('async storage @AuthData is undifined! ')
+  } catch (error) {
+      console.log("Error loading data from memory")
+  }
+  return null
+}
+const getSelf = async () =>{
+  await loadStorageData()
+  return await getUser(authData.id)
 }
 const getUser = async (id: String) => {
   const res: any = await userApi.getUser(id);
@@ -16,7 +39,8 @@ const getUser = async (id: String) => {
       name: usr.name,
       email: usr.email,
       img: usr.img,
-      id: usr.id
+      id: usr.id,
+      phone: usr.phone
     }
   }
   else{
@@ -24,7 +48,8 @@ const getUser = async (id: String) => {
       name: 'Not found',
       email: '',
       img: '',
-      id: ''
+      id: '',
+      phone: ''
     }
   }
   return user;
@@ -42,4 +67,13 @@ const uploadImage = async (imageURI: String) => {
     return res.data.url
   }
 };
-export default { getUser, uploadImage };
+const editUser = async (data:Object) => {
+  await loadStorageData()
+  const res = await userApi.editUser(authData.id,data,authData.accToken)
+  console.log("EDIT ERR: ", res.status)
+    if (res.status == 200){
+      return true
+    }
+    return false
+}
+export default { getUser, uploadImage,editUser,getSelf };

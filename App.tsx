@@ -1,92 +1,18 @@
-import { StatusBar } from 'expo-status-bar';
-import { FC, useEffect, useState, useMemo } from 'react';
-import { CommonActions, NavigationContainer } from '@react-navigation/native'
+import { FC, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { StyleSheet, View, Image, Text, TouchableOpacity, Button, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, TouchableHighlight } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import { Student } from './models/student_model';
-import StudentsList from './StudentsList';
-import * as ImagePicker from 'expo-image-picker';
 import ChatFeed from './Chat';
 import Login, { Register } from './Login';
-import { Post } from './models/post_model';
 import { auth_model } from './models/auth_model'
 import React from 'react';
-import PostFeed from './PostsList';
 import AddPostScreen from './AddPostScreen';
 import PostsScreen from './PostsScreen';
-
-const Home: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-  const [msg, setMsg] = useState('non')
-  const [counter, setCounter] = useState<number>(0)
-
-  useEffect(() => {
-    console.log('useEffect' + route.params?.newPostId)
-    if (route.params?.newPostId) {
-      setMsg(JSON.stringify(route.params?.newPostId))
-    }
-    if (route.params?.serial) {
-      setCounter(route.params.serial)
-    }
-  })
-  return (
-    <View style={{
-      flex: 1, alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <Text>{'Home Screen #' + counter}</Text>
-      <Button
-        title="LogOut"
-        onPress={auth_model.logout}
-      />
-      <Button
-        title="Go to add student"
-        onPress={() => navigation.navigate('AddStudentScreen')}
-      />
-      <Button
-        title='Logout'
-      />
-    </View>
-  );
-}
-const PostEditScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-  const [name, setName] = useState<string>(JSON.stringify(route.params?.name))
-  const [counter, setCounter] = useState<number>(route.params?.serial)
-  const [st, setSt] = useState<Student>(route.params?.st)
-  useEffect(() => {
-    navigation.setOptions({ title: counter })
-    // if (route.params?.serial) {
-    //   setCounter(route.params.serial)
-    // }
-    if (route.params?.st) {
-      //setCounter(route.params.st.id)
-    }
-  })
-  return (
-    <View style={styles.container}>
-      <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
-      <TextInput
-        style={styles.input}
-        placeholder="input name"
-        value={st.id}
-      />
-      <TextInput
-        style={styles.input}
-        value={st.name}
-      />
-      <TextInput
-        style={styles.input}
-        value={st.phone}
-      />
-      <Button title='Back' onPress={() => { navigation.navigate('') }} />
-    </View>
-  );
-}
+import ProfileScreen from './ProfileScreen';
 
 const Stack = createNativeStackNavigator();
-
 const AuthStack = () => {
   return (
     <Stack.Navigator>
@@ -105,34 +31,32 @@ const AppStack = () => {
           case 'Home':
             iconName = focused ? 'home' : 'home-outline';
             break;
-          case 'Details':
-            iconName = focused ? 'information-circle' : 'information-circle-outline';
+          case 'Messages':
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
+            break;
+          case 'AddPost':
+            iconName = focused ? 'add-circle' : 'add-circle-outline';
+            break;
+          case 'Profile':
+            iconName = focused ? 'person' : 'person-outline';
             break;
         }
-        // if (route.name === 'Home') {
-        //   iconName = focused ? 'information-circle' : 'information-circle-outline';
-        // } else if (route.name === 'Details') {
-        //   iconName = focused ? "home" : "home-outline";
-        // }
-        // You can return any component that you like here!
         return <Ionicons name={iconName} size={size} color={color} />;
-        //return <Ionicons name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: '#884DFF',
-      tabBarInactiveTintColor: 'gray',
+      tabBarInactiveTintColor: '#884DFF',
     })
     }>
-      <Tab.Screen name="Home" component={Home} options={{
+      <Tab.Screen name="Home" component={PostsScreen} options={{
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => alert('This is a button!')}
-            style={{ backgroundColor: 'red' }}
-          ><Text>{'asdas'}</Text></TouchableOpacity>
+          <TouchableHighlight
+            onPress={async () => await auth_model.logout()}
+          ><Ionicons name={'log-out-outline'} size={30} color={'#884DFF'}/></TouchableHighlight>
         ),
       }} />
       <Tab.Screen name="Messages" component={ChatFeed} options={{ title: 'Chat' }} />
-      <Tab.Screen name="Posts" component={PostsScreen} options={{ title: 'Posts' }} />
       <Tab.Screen name="AddPost" component={AddPostScreen} options={{ title: 'Add Post' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   )
 }
@@ -159,124 +83,9 @@ const App: FC = () => {
     </NavigationContainer>
   )
 }
-const AddStudentScreen: FC = () => {
-  const onText1Change = () => { }
-  const [text1, setText1] = useState('text 1')
-  const onText2Change = () => { }
-  const [text2, setText2] = useState('text 2')
-  const onText3Change = () => { }
-  const [text3, setText3] = useState('text 3')
-  const pressHandler = () => { alert('pressHandler') }
-  const [imageUri, setImageUri] = useState()
-  const askPermition = async () => {
-    try {
-      const res = await ImagePicker.requestCameraPermissionsAsync()
-      if (!res.granted) {
-        console.log("no permissions!")
-      }
-    } catch (err) {
-
-    }
-  }
-  useEffect(() => {
-    askPermition()
-  })
-  return (
-    <ScrollView>
-      <View style={styles.container}>
-
-        <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
-        <TextInput
-          style={styles.input}
-          onChangeText={onText1Change}
-          placeholder="input name"
-          value={text1}
-        />
-        <TextInput
-          style={styles.input}
-          onChangeText={onText2Change}
-          value={text2}
-        />
-        <TextInput
-          style={styles.input}
-          onChangeText={onText3Change}
-          value={text3}
-        />
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.button} onPress={pressHandler}>
-            <Text style={styles.buttonText}>OK</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={pressHandler}>
-            <Text style={styles.buttonText}>CANCEL</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ScrollView>
-  )
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export default function app() {
   return (
     <App></App>
   )
 }
-
-
-
-
-
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'column',
-    backgroundColor: '#aff',
-    justifyContent: 'flex-start',
-  },
-  avatar: {
-    marginTop: 10,
-    height: 200,
-    resizeMode: 'contain',
-    alignSelf: 'center',
-    aspectRatio: 1
-  },
-  cameraButton: {
-    position: 'absolute',
-
-  },
-  input: {
-    height: 40,
-    margin: 12,
-    borderWidth: 1,
-    padding: 10,
-    alignItems: 'center',
-  },
-  buttonsContainer: {
-    flexDirection: 'row',
-    alignSelf: 'baseline',
-  },
-  button: {
-    flex: 1,
-    margin: 10,
-    alignItems: 'center',
-    backgroundColor: 'yellow'
-  },
-  buttonText: {
-    padding: 10
-  }
-
-});

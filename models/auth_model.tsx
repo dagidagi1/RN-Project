@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { ToastAndroid } from 'react-native';
 import user_api from '../api/user_api';
 export type AuthData = {
     refToken: string;
@@ -61,8 +62,10 @@ const logout = async () => {
     //       });
     //     }, 1000);
     //   });
-    delay(2000)
-    console.log("Logging out")
+    await loadStorageData()
+    const res = await user_api.logoutUser(data.refToken)
+    if (res.status != 200)
+        ToastAndroid.show("LOGOUT: server error: "+ res.status, ToastAndroid.LONG)
     await AsyncStorage.removeItem('@AuthData')
     loggedSetter(false)
 };
