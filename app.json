@@ -28,6 +28,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e3bfe145-1814-42af-a11f-4a6f197a1bbb"
+      }
+    },
+    "owner": "arkadya"
   }
 }
