@@ -84,7 +84,7 @@ const Loading = (message: string) => {
       style={{
         flex: 1,
         justifyContent: 'center',
-        backgroundColor: 'red'
+        backgroundColor: myColors.mainBackground
       }}>
       <ActivityIndicator animating={true} size="large" />
     </View>
