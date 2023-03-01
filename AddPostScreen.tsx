@@ -178,7 +178,7 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
             <Button title='Cancel' onPress={() => { navigation.goBack() }} />
             {editMode ? (<Button title='Edit' onPress={() => { editPost() }} />
             ) : (
-                <Button title='Post' onPress={() => { addPost() }} disabled={(!newPhotoFlag && !newTextFlag)} />)}
+                <Button title='Post' onPress={() => { addPost() }} disabled={(!newPhotoFlag && !newTextFlag && text.length < 1)} />)}
         </View>
     );
 }

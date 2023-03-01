@@ -30,7 +30,8 @@ const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) =>
                 from: args.from,
                 id: args.id,
                 msg: args.message,
-                to: args.to
+                to: args.to,
+                time: args.time
             }
             setNewMsg(true)
         })
@@ -42,7 +43,8 @@ const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) =>
                         from: e.from,
                         id: e._id,
                         msg: e.message,
-                        to: e.to
+                        to: e.to,
+                        time: e.time
                     }
                     data.push(msg)
                 })
@@ -58,7 +60,7 @@ const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) =>
                 data={msgs}
                 keyExtractor={msg => msg.id}
                 renderItem={({ item }) => (
-                    <ChatItem from={item.from} to={item.to} msg={item.msg} id={item.id} />
+                    <ChatItem from={item.from} to={item.to} msg={item.msg} id={item.id} time={item.time} />
                 )}>
             </FlatList>
             <View style={styles.inputRow}>
@@ -72,25 +74,39 @@ const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) =>
         </View>
     );
 }
-export const ChatItem: FC<{ from: string, to: string, msg: string, id: string }> =
-    ({ from, to, msg, id }) => {
+export const ChatItem: FC<{ from: string, to: string, msg: string, id: string, time: string }> =
+    ({ from, to, msg, id, time }) => {
         const [usrUri, setUsrUri] = useState(GlobalVars.defaultAvatar)
         const [loading, setLoading] = useState(true)
+        const [usrName, setUsrName] = useState('')
         const func = async () => {
             const x = await user_model.getUser(from)
             setUsrUri(x.img.toString())
+            setUsrName(x.name.toString())
             setLoading(false)
         }
         useEffect(() => {
             func()
         }, [])
+        const convertTime = (t: string) => {
+            return getHoursAndMinutes(new Date(Number(time)))
+        }
+        function getHoursAndMinutes(date: Date) {
+            return (
+                padTo2Digits(date.getHours()) + ":" + padTo2Digits(date.getMinutes())
+            );
+        }
+
+        function padTo2Digits(num: Number) {
+            return String(num).padStart(2, "0");
+        }
         if (socketService.getInstance().isItMe(from))
             return (
                 <View style={styles.myContainer}>
                     <View style={styles.myMessageBox}>
                         <Text style={styles.myText}>{msg}</Text>
                         <Text style={styles.myTime}>
-                            {'19:19'}
+                            {convertTime(time)}
                         </Text>
                     </View>
                 </View>
@@ -103,9 +119,10 @@ export const ChatItem: FC<{ from: string, to: string, msg: string, id: string }>
                     <Image source={{ uri: usrUri }} style={styles.avatar} />
                 )}
                 <View style={styles.messageBox}>
+                    <Text style={styles.myName}>{usrName}</Text>
                     <Text style={styles.text}>{msg}</Text>
                     <Text style={styles.time}>
-                        {'19:19'}
+                        {convertTime(time)}
                     </Text>
                 </View>
             </View>
@@ -157,11 +174,18 @@ const styles = StyleSheet.create({
         width: "70%",
         borderRadius: 15,
         backgroundColor: myColors.message,
+        flexDirection: 'column'
     },
     text: {
         margin: 10,
         color: myColors.msgText,
         marginBottom: 8,
+    },
+    myName: {
+        alignSelf:'center',
+        fontWeight: 'bold',
+        textShadowRadius: 10,
+        color: myColors.msgText,
     },
     myText: {
         margin: 10,

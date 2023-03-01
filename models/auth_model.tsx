@@ -69,6 +69,7 @@ export class auth_model {
         if (res.status != 200)
             ToastAndroid.show("LOGOUT: server error: " + res.status, ToastAndroid.LONG)
         await AsyncStorage.removeItem('@AuthData')
+        MySocket.getInstance().getSocket().close()
         this.loggedSetter(false)
     }
     public init = async (setter: (f: boolean) => void) => {

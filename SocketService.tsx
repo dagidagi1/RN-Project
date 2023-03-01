@@ -6,7 +6,8 @@ export type Message = {
     from: string,
     to: string,
     msg: string,
-    id: string    
+    id: string,
+    time: string
 }
 export default class MySocket {
     private static myInstance: any = null
