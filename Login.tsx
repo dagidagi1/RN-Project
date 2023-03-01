@@ -5,6 +5,11 @@ import { auth_model } from './models/auth_model'
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import user_model from "./models/user_model";
+import myColors from "./myColors";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+import * as Facebook from "expo-auth-session/providers/facebook";
+import GlobalVars from "./GlobalVars";
 const validateEmail = (email: string) => {
     return String(email)
         .toLowerCase()
@@ -34,37 +39,80 @@ const Login: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
     const [email, setEmail] = useState<string>('')
     const [loading, setLoading] = useState<boolean>(false)
     const [password, setPass] = useState<string>('')
-    const connectViaGoogle = () => { Alert.alert("TO-DO", 'Google connect!') }
-    const connectViaFacebook = () => { Alert.alert("TO-DO", 'Facebook connect!') }
-    const [waiting, setWaiting] = useState(false)
+
+    WebBrowser.maybeCompleteAuthSession() //close window after approve.
+    const [gToken, setGToken] = useState("");
+    const [gReq, gRes, gPromptAsync] = Google.useAuthRequest({
+        expoClientId: GlobalVars.expoClienId
+    });
     useEffect(() => {
-        if (route.params?.email) {
+        setLoading(false)
+        if (gRes?.type === "success") {
+            setGToken(gRes.authentication!.accessToken);
+            onGoogleApprove()
+        }
+    }, [gRes, gToken]);
+    const connectViaGoogle = async () => {
+        setLoading(true)
+        await gPromptAsync()
+    }
+    const onGoogleApprove = async () => {
+        const usr = await getUserInfoG()
+        if (gRes?.type === "success")
+            navigation.navigate('Register', { 'exInfo': true, 'username': usr.given_name, 'avatarUri': usr.picture, 'email': usr.email, 'phone': usr.phone })
+    }
+
+    const getUserInfoG = async () => {
+        try {
+            const response = await fetch(
+                GlobalVars.googleApiUrl,
+                {
+                    headers: { Authorization: `Bearer ${gToken}` },
+                }
+            )
+            const user = await response.json();
+            return user
+        } catch (error) {
+            console.log("(ERROR) GET USER INFO GOOGLE")
+        }
+    }
+    useEffect(() => {
+        if (route.params?.email)
             setEmail(route.params?.email)
-        }
-        if (route.params?.pass) {
+        if (route.params?.pass)
             setPass(route.params?.pass)
-        }
-    })
+    }, [route])
     const login = () => {
         if (password.length > 7 && validateEmail(email)) {
-            console.log(email + password)
-            //setToken('123')
             setLoading(true)
-            auth_model.login(email, password).then((err) => {
-                setLoading(false)
-                console.log(err)
-                if (err == '-1')
-                    return
-                else
-                    ToastAndroid.show(err, ToastAndroid.LONG)
-
-            })
+            auth_model.getInstance().login(email, password).then((err) => { setLoading(false) })
         }
         else ToastAndroid.show('Invalid email or password', ToastAndroid.LONG)
     }
-    if (waiting) return Loading()
+
+    const [request, response, promptAsync] = Facebook.useAuthRequest({
+        clientId: GlobalVars.facebookAppId,
+    });
+    useEffect(() => {
+        if (response && response.type === "success" && response.authentication) {
+            (async () => {
+                const userInfoResponse = await fetch(
+                    GlobalVars.facebookReqUrl + response.authentication?.accessToken + GlobalVars.facebookReqFields
+                );
+                const userInfo = await userInfoResponse.json();
+                navigation.navigate('Register', { 'exInfo': true, 'username': userInfo.name, 'avatarUri': userInfo.picture.data.url, 'email': userInfo.email })
+            })();
+        }
+    }, [response]);
+    const handlePressAsync = async () => {
+        const result = await promptAsync();
+    };
+    const connectViaFacebook = () => {
+        handlePressAsync()
+    }
+    if (loading) return Loading()
     return (
-        <ScrollView>
+        <ScrollView style={styles.mainContainer}>
             <View style={styles.container}>
                 <ActivityIndicator animating={loading} size="large" />
                 <TextInput
@@ -116,23 +164,35 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
     const [phone, setPhone] = useState<string>('')
     const [password, setPass] = useState<string>('')
     const [modalVisible, setModalVisible] = useState(false)
-    const [imgUri, setImgUri] = useState('')
+    const [imgUri, setImgUri] = useState(GlobalVars.defaultAvatar)
     const [newPhotoFlag, setNewPhotoFlag] = useState<boolean>(false)
     const [confPassword, setConfPassword] = useState<string>('')
+
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
             askPermition()
-            if (route.params?.editFlag) {
-                setEditMode(true)
-                setName(route.params?.username)
-                setImgUri(route.params?.avatarUri)
-                setEmail(route.params?.email)
-                setPhone(route.params?.phone)
-                setNewPhotoFlag(false)
-            }
-        })
-        return unsubscribe
-    }, [navigation])
+            return unsubscribe
+        }, [navigation])
+    })
+
+    useEffect(() => {
+        if (route.params?.exInfo) {
+            setName(route.params?.username)
+            setImgUri(route.params?.avatarUri)
+            setEmail(route.params?.email)
+            setPhone(route.params?.phone)
+            setNewPhotoFlag(false)
+        }
+        if (route.params?.editFlag) {
+            setEditMode(true)
+            setName(route.params?.username)
+            setImgUri(route.params?.avatarUri)
+            setEmail(route.params?.email)
+            setPhone(route.params?.phone)
+            setNewPhotoFlag(false)
+        }
+    }, [route])
+
 
     const askPermition = async () => {
         try {
@@ -213,34 +273,38 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
     }
     const onRegisterPressed = async () => {
         //Check input: 
-        const inputErrMessage = checkInput()
-        if (inputErrMessage === '') {
-            setLoading(true)
-            let url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg' // Default Image
-            if (imgUri != '') { // User Image
-                try { url = await user_model.uploadImage(imgUri) }
-                catch (err) {
-                    console.log('Failed to upload img')
+        try {
+            const inputErrMessage = checkInput()
+            let url = GlobalVars.defaultAvatar
+            if (inputErrMessage === '') {
+                setLoading(true)
+                if (newPhotoFlag) { // User Image
+                    url = await user_model.uploadImage(imgUri)
                 }
+                if (imgUri[0] == 'h')
+                    url = imgUri
+                const res: any = await user_api.registerUser({
+                    email: email,
+                    password: password,
+                    phone: phone,
+                    name: name,
+                    img: url
+                })
+                setLoading(false)
+                if (res.status == 200)
+                    navigation.navigate('Login', { email: email, pass: password })
+                else
+                    ToastAndroid.show(res.data.message, ToastAndroid.LONG)
             }
-            const res: any = await user_api.registerUser({
-                email: email,
-                password: password,
-                phone: phone,
-                name: name,
-                img: url
-            })
-            setLoading(false)
-            if (res.status == 200)
-                navigation.navigate('Login', { email: email, pass: password })
             else
-                ToastAndroid.show(res.data.message, ToastAndroid.LONG)
+                ToastAndroid.show('Wrong: ' + inputErrMessage, ToastAndroid.LONG)
         }
-        else
-            ToastAndroid.show('Wrong: ' + inputErrMessage, ToastAndroid.LONG)
+        catch (err) {
+            console.log("(ERROR): ", err)
+        }
     }
     return (
-        <ScrollView>
+        <ScrollView style={styles.mainContainer}>
             <View style={styles.container}>
                 <Modal
                     animationType="slide"
@@ -255,26 +319,21 @@ export const Register: FC<{ route: any, navigation: any }> = ({ route, navigatio
                             style={{ alignItems: "center" }}
                             onPress={openGallery}
                         >
-                            <Ionicons name="images" size={80} color={'red'} />
-                            <Text style={{ color: 'green' }}>Gallery</Text>
+                            <Ionicons name="images" size={80} color={myColors.tabIcon} />
+                            <Text style={{ color: myColors.tabIcon }}>Gallery</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={{ alignItems: "center" }}
                             onPress={openCamera}
                         >
-                            <Ionicons name="camera" size={80} color={'green'} />
-                            <Text style={{ color: 'green' }}>Camera</Text>
+                            <Ionicons name="camera" size={80} color={myColors.tabIcon} />
+                            <Text style={{ color: myColors.tabIcon }}>Camera</Text>
                         </TouchableOpacity>
                     </View>
                 </Modal>
                 <ActivityIndicator animating={loading} size="large" />
                 <TouchableHighlight onPress={() => setModalVisible(true)}>
-                    {editMode ? (
-                        <Image style={styles.avatar} source={{ uri: imgUri }}></Image>
-                    ) : (
-                        <Image style={styles.avatar} source={require('./assets/o.png')}></Image>
-
-                    )}
+                    <Image style={styles.avatar} source={{ uri: imgUri }}></Image>
                 </TouchableHighlight>
                 <TextInput
                     style={styles.input}
@@ -333,12 +392,15 @@ const styles = StyleSheet.create({
         margin: 12,
         borderWidth: 1,
         textAlign: 'center',
+        borderColor: myColors.tabIcon
     },
     container: {
         flex: 1,
         flexDirection: 'column',
         justifyContent: 'center',
-        marginTop: 20,
+    },
+    mainContainer: {
+        backgroundColor: myColors.mainBackground,
     },
     errText: {
         marginBottom: 12,
@@ -395,7 +457,7 @@ const styles = StyleSheet.create({
     },
     modalView: {
         flexDirection: "row",
-        backgroundColor: 'gray',
+        backgroundColor: myColors.myMessage,
         height: 140,
         position: "absolute",
         bottom: 5,

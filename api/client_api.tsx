@@ -1,6 +1,7 @@
 import { create } from "apisauce";
+import GlobalVars from "../GlobalVars";
 const clientApi = create({
- baseURL: 'http://192.168.59.246:3000',
+ baseURL: GlobalVars.serverIP,
  headers: { Accept: 'application/vnd.github.v3+json' },
 })
 export default clientApi

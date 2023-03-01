@@ -1,8 +1,9 @@
 import userApi from "../api/user_api";
 import FormData from "form-data";
 import clientApi from "../api/client_api";
-import { AuthData } from "./auth_model";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AuthData, auth_model } from "./auth_model";
+import GlobalVars from "../GlobalVars";
+import { ToastAndroid } from "react-native";
 export type User = {
   name: String,
   email: String,
@@ -11,45 +12,27 @@ export type User = {
   phone: String,
 }
 
-let authData: AuthData 
-const loadStorageData = async () => {
-  try {
-      const authDataSerialized = await AsyncStorage.getItem('@AuthData');
-      if (authDataSerialized) {
-          authData = JSON.parse(authDataSerialized);
-          return JSON.parse(authDataSerialized);
-      }
-      else
-          console.log('async storage @AuthData is undifined! ')
-  } catch (error) {
-      console.log("Error loading data from memory")
-  }
-  return null
-}
-const getSelf = async () =>{
-  await loadStorageData()
+let authData: AuthData
+const getSelf = async () => {
+  if (!authData) authData = await auth_model.getInstance().getAuthData()
   return await getUser(authData.id)
 }
 const getUser = async (id: String) => {
-  const res: any = await userApi.getUser(id);
-  let user: User
+  if (!authData) authData = await auth_model.getInstance().getAuthData()
+  const res: any = await userApi.getUser(id, authData.accToken);
+  let user: User = {name: 'Not found', email: '', img: '', id: '', phone: ''}
   if (res.status == 200) {
-    const usr = res.data.data
-    user = {
-      name: usr.name,
-      email: usr.email,
-      img: usr.img,
-      id: usr.id,
-      phone: usr.phone
-    }
-  }
-  else{
-    user = {
-      name: 'Not found',
-      email: '',
-      img: '',
-      id: '',
-      phone: ''
+    try {
+      const usr = res.data.data
+      user = {
+        name: usr.name,
+        email: usr.email,
+        img: usr.img,
+        id: usr.id,
+        phone: usr.phone
+      }
+    } catch (err) {
+      console.log("(ERROR STATUS: "+ res.status + ") - user model -> getUser : ", err)
     }
   }
   return user;
@@ -60,20 +43,19 @@ const uploadImage = async (imageURI: String) => {
   body.append("file", { name: "name", type: "image/jpeg", uri: imageURI });
   let url = "/file/";
   const res: any = await clientApi.post(url, body);
-  console.log("UPLOAD STATUS: ", res.ok)
   if (!res.ok) {
-    return ""
-  } else {
-    return res.data.url
+    ToastAndroid.show("Upload image failed!",ToastAndroid.LONG)
+    return GlobalVars.defaultAvatar
   }
-};
-const editUser = async (data:Object) => {
-  await loadStorageData()
-  const res = await userApi.editUser(authData.id,data,authData.accToken)
-  console.log("EDIT ERR: ", res.status)
-    if (res.status == 200){
-      return true
-    }
-    return false
+    return res.data.url
 }
-export default { getUser, uploadImage,editUser,getSelf };
+
+const editUser = async (data: Object) => {
+  if (!authData) authData = await auth_model.getInstance().getAuthData()
+  const res = await userApi.editUser(authData.id, data, authData.accToken)
+  console.log("EDIT ERR: ", res.status)
+  if (res.status == 200) return true
+  return false
+}
+
+export default { getUser, uploadImage, editUser, getSelf };

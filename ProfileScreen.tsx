@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState } from "react";
 import { View, TextInput, Text, Button, StyleSheet, Image, ActivityIndicator, ToastAndroid, Modal, TouchableOpacity } from "react-native";
-import post_model, { Post } from "./models/post_model";
+import {post_model, Post } from "./models/post_model";
 import * as ImagePicker from 'expo-image-picker';
 import user_model, { User } from "./models/user_model";
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import PostFeed from "./PostsList";
 import AddPostScreen from "./AddPostScreen";
 import { Register } from "./Login";
+import myColors from "./myColors";
 const ProfileScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
     const Stack = createNativeStackNavigator()
     return (
@@ -18,7 +19,7 @@ const ProfileScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
     )
 }
 const Profile: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-    const [loading, setLoading] = useState<boolean>(false)
+    const [loading, setLoading] = useState<boolean>(true)
 
     const [name, setName] = useState<string>('')
     const [email, setEmail] = useState<string>('')
@@ -49,7 +50,6 @@ const Profile: FC<{ route: any, navigation: any }> = ({ route, navigation }) => 
             ) : (
                 <Image style={styles.avatar} source={{ uri: imgUri }}></Image>
             )}
-            <ActivityIndicator animating={loading} size="large" />
             <TextInput
                 style={styles.input}
                 placeholder="Name"
@@ -90,12 +90,13 @@ const styles = StyleSheet.create({
         margin: 12,
         borderWidth: 1,
         textAlign: 'center',
+        borderColor: myColors.tabIcon
     },
     container: {
         flex: 1,
         flexDirection: 'column',
         justifyContent: 'center',
-        marginTop: 20,
+        backgroundColor:myColors.mainBackground,
     },
     errText: {
         marginBottom: 12,

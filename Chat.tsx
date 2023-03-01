@@ -1,30 +1,60 @@
-import { FC, useEffect, useState } from "react"
-import { StyleSheet, Button, View, Text, Image, FlatList, TextInput, ImageBackground, TouchableOpacity, SafeAreaView } from "react-native"
-import { Message } from "./models/message_model"
-import message_model from "./models/message_model"
-import { Colors } from "react-native/Libraries/NewAppScreen"
-const currUsr = "Dagi"
-const getUsrAvatar = (usrId: string) => {
-    return require('./assets/o.png')
-}
+import React, { FC, useEffect, useState } from "react"
+import { StyleSheet, View, Text, Image, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from "react-native"
+import { Message } from "./SocketService"
+import socketService from "./SocketService"
+import user_model from "./models/user_model"
+import Ionicons from '@expo/vector-icons/Ionicons';
+import myColors from "./myColors"
+import GlobalVars from "./GlobalVars"
 
 const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-    const [msgs, setMsgs] = useState(message_model.getAllMsgs())
-    const [counter, setCounter] = useState<number>(0)
-    const [text, onChangeText] = useState('')
+    const [msgs, setMsgs] = useState<Array<Message>>([])
+    const [text, setText] = useState('')
+    const [newMsg, setNewMsg] = useState<boolean>(false)
+    let socket = socketService.getInstance().getSocket()
+    useEffect(() => {
+        socketService.getInstance().requestAllMessages()
+    }, [])
+    useEffect(() => {
+        if (newMsg)
+            socketService.getInstance().requestAllMessages()
+    }, [newMsg])
     const sendMessage = () => {
-        console.log(text)
-        message_model.addMessage(text,currUsr)
-        onChangeText('')
+        if (text != '' && text.replace(/\s/g, '') != '')
+            socketService.getInstance().sendMessage(text)
+        setText('')
     }
     useEffect(() => {
-        const updateOnFocus = navigation.addListener('focus', () => {
-            setMsgs(message_model.getAllMsgs())
+        socket.on("chat:message", (args: any) => {
+            const msg: Message = {
+                from: args.from,
+                id: args.id,
+                msg: args.message,
+                to: args.to
+            }
+            setNewMsg(true)
         })
-    })
+        socket.on("chat:get_messages.response", (args: any) => {
+            let data: Array<Message> = []
+            if (args) {
+                args.forEach((e: any) => {
+                    const msg: Message = {
+                        from: e.from,
+                        id: e._id,
+                        msg: e.message,
+                        to: e.to
+                    }
+                    data.push(msg)
+                })
+                setMsgs(data.reverse())
+                setNewMsg(false)
+            }
+        })
+    }, [socket])
     return (
         <View style={styles.mainFrame}>
             <FlatList style={styles.flatlist}
+                inverted
                 data={msgs}
                 keyExtractor={msg => msg.id}
                 renderItem={({ item }) => (
@@ -32,44 +62,114 @@ const ChatFeed: FC<{ route: any, navigation: any }> = ({ route, navigation }) =>
                 )}>
             </FlatList>
             <View style={styles.inputRow}>
-            <TextInput style={styles.input}
-                onChangeText={onChangeText}
-                value={text}
-            />
-            <TouchableOpacity onPress={sendMessage}><Image source={require('./assets/o.png')} style={styles.sendButton}></Image></TouchableOpacity>
+                <TextInput style={styles.input}
+                    onChangeText={setText}
+                    value={text}
+                    multiline={true}
+                />
+                <TouchableOpacity onPress={sendMessage}><Ionicons name="paper-plane" size={40} color={myColors.tabIcon} style={{ marginTop: 6, marginEnd: 8 }} /></TouchableOpacity>
             </View>
         </View>
     );
 }
 export const ChatItem: FC<{ from: string, to: string, msg: string, id: string }> =
     ({ from, to, msg, id }) => {
-        if (from === currUsr) // My message: outgoing
+        const [usrUri, setUsrUri] = useState(GlobalVars.defaultAvatar)
+        const [loading, setLoading] = useState(true)
+        const func = async () => {
+            const x = await user_model.getUser(from)
+            setUsrUri(x.img.toString())
+            setLoading(false)
+        }
+        useEffect(() => {
+            func()
+        }, [])
+        if (socketService.getInstance().isItMe(from))
             return (
-                <View style={styles.listRow} >
-                    <View style={styles.myBubbleContainer}>
-                        <ImageBackground source={require('./assets/outMsgBubble.png')} resizeMode='stretch' style={styles.myBubble}>
-                            <Text style={styles.outMessageTxtBox} > {msg} </Text>
-                        </ImageBackground>
+                <View style={styles.myContainer}>
+                    <View style={styles.myMessageBox}>
+                        <Text style={styles.myText}>{msg}</Text>
+                        <Text style={styles.myTime}>
+                            {'19:19'}
+                        </Text>
                     </View>
                 </View>
             )
-        else // Other message : incoming
-            return (
-                <View style={styles.listRow} >
-                    <View style={styles.avatarAndNameContainer}>
-                        <Image source={getUsrAvatar(from)} style={styles.avatar}></Image>
-                        <Text style={styles.senderNameTxtBox}> {from} </Text>
-                    </View>
-                    <View style={styles.bubbleContainer}>
-                        <ImageBackground source={require('./assets/inMsgBubble.png')} resizeMode='stretch' style={styles.bubble}>
-                            <Text style={styles.messageTxtBox} > {msg} </Text>
-                        </ImageBackground>
-                    </View>
+        return (
+            <View style={styles.container}>
+                {loading ? (
+                    <ActivityIndicator animating={true} size="large" />
+                ) : (
+                    <Image source={{ uri: usrUri }} style={styles.avatar} />
+                )}
+                <View style={styles.messageBox}>
+                    <Text style={styles.text}>{msg}</Text>
+                    <Text style={styles.time}>
+                        {'19:19'}
+                    </Text>
                 </View>
-            )
-    }
+            </View>
+        );
+    };
 export default ChatFeed
 const styles = StyleSheet.create({
+    container: {
+        flexDirection: "row",
+        marginBottom: 10,
+    },
+    myContainer: {
+        flexDirection: "row",
+        marginBottom: 10,
+        alignSelf: 'flex-end',
+        marginEnd: 10
+    },
+    title: {
+        flexDirection: "row",
+        flex: 1,
+        alignItems: "center",
+    },
+    avatar: {
+        margin: 8,
+        width: 38,
+        aspectRatio: 1,
+        borderRadius: 15,
+    },
+    time: {
+        color: 'black',
+        position: "absolute",
+        bottom: 1,
+        right: 10,
+        fontSize: 10,
+    },
+    myTime: {
+        color: 'gray',
+        position: "absolute",
+        bottom: 1,
+        right: 10,
+        fontSize: 10,
+    },
+    myMessageBox: {
+        width: "70%",
+        borderRadius: 15,
+        backgroundColor: myColors.myMessage,
+    },
+    messageBox: {
+        width: "70%",
+        borderRadius: 15,
+        backgroundColor: myColors.message,
+    },
+    text: {
+        margin: 10,
+        color: myColors.msgText,
+        marginBottom: 8,
+    },
+    myText: {
+        margin: 10,
+        color: myColors.msgText,
+        marginBottom: 8,
+    },
+
+
     listRow: {
         flex: 1,
         margin: 2,
@@ -93,19 +193,14 @@ const styles = StyleSheet.create({
         marginRight: 35,
         marginTop: 10,
     },
-    // listRowTextContainer: {
-    //     flex: 1,
-    //     margin: 15,
-    // },
-
-    avatar: {
+    aavatar: {
         flex: 1,
         height: 100,
         aspectRatio: 1,
         justifyContent: 'center'
     },
     bubbleContainer: {
-        flex: 3,
+        flex: 2,
         alignSelf: 'flex-start'
     },
     myBubbleContainer: {
@@ -143,24 +238,19 @@ const styles = StyleSheet.create({
     },
     mainFrame: {
         flex: 1,
-        flexDirection: 'column'
+        flexDirection: 'column',
+        backgroundColor: myColors.mainBackground
     },
-    inputRow:{
+    inputRow: {
         flexDirection: 'row',
-    },
-    sendButton:{
-        flex: 1,
-        aspectRatio: 1,
-        height: 40,
-        padding: 5,
-        alignSelf: 'flex-end'
     },
     input: {
         flex: 10,
-        height: 40,
+        height: 38,
         margin: 8,
         borderWidth: 1,
         padding: 5,
+        borderColor: myColors.tabIcon
     }
 
 })

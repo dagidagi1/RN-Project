@@ -1,13 +1,14 @@
 import React, { FC, useEffect, useState } from "react";
 import { View, TextInput, Text, Button, StyleSheet, Image, ActivityIndicator, ToastAndroid, Modal, TouchableOpacity } from "react-native";
-import post_model, { Post } from "./models/post_model";
+import { post_model, Post } from "./models/post_model";
 import * as ImagePicker from 'expo-image-picker';
 import user_model from "./models/user_model";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import myColors from "./myColors";
+import GlobalVars from "./GlobalVars";
 
 
 const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation }) => {
-    // FIXXX!!!!!!!!!
     const [text, setText] = useState<string>('')
     const [imgUri, setImgUri] = useState('')
     const [postId, setPostId] = useState<String>('')
@@ -27,53 +28,48 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
         }
     }
     const openCamera = async () => {
-        setModalVisible(false);
+        setModalVisible(false)
         try {
-            const res = await ImagePicker.launchCameraAsync();
+            const res = await ImagePicker.launchCameraAsync()
             if (!res.canceled && res.assets.length > 0) {
-                const uri = res.assets[0].uri;
-                setImgUri(uri);
+                const uri = res.assets[0].uri
+                setImgUri(uri)
                 setNewPhotoFlag(true)
             }
         } catch (err) {
-            console.log("Open camera failed");
+            console.log("Open camera failed")
         }
-    };
+    }
 
     const openGallery = async () => {
-        setModalVisible(false);
+        setModalVisible(false)
         try {
-            const res = await ImagePicker.launchImageLibraryAsync();
+            const res = await ImagePicker.launchImageLibraryAsync()
             if (!res.canceled && res.assets.length > 0) {
-                const uri = res.assets[0].uri;
-                setImgUri(uri);
+                const uri = res.assets[0].uri
+                setImgUri(uri)
                 setNewPhotoFlag(true)
             }
         } catch (err) {
-            console.log("Open gallery failed");
+            console.log("Open gallery failed")
         }
-    };
+    }
     const addPost = async () => {
         setLoading(true)
-        let res, url
-        if (imgUri == '') {
-            // Default img
-            url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
-        }
-        else {
+        let res, url = GlobalVars.defaultPost
+        if (imgUri != '') {
             //user Image
             try {
                 url = await user_model.uploadImage(imgUri)
             }
             catch (err) {
-                console.log('Failed to upload img')
-                url = 'http://192.168.59.246:3000/upload_files/usr_icon.jpg'
+                console.log('(ERROR) add post screen -> add post 1')
             }
         }
         try {
-            res = await post_model.addPost(url, text)
+            res = await post_model.getInstance().addPost(url, text)
         } catch (err) {
-            console.log("Failed adding post")
+            console.log('(ERROR) add post screen -> add post 2')
         }
         if (res) {
             setLoading(false)
@@ -98,15 +94,15 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
                     console.log('Failed to upload img')
                 }
                 if (newTextFlag) {
-                    successFlag = await post_model.editPost(postId, text, url)
+                    successFlag = await post_model.getInstance().editPost(postId, text, url)
                 }
                 else {
-                    successFlag = await post_model.editPost(postId, '', url)
+                    successFlag = await post_model.getInstance().editPost(postId, '', url)
                 }
             }
             else {
                 if (newTextFlag) {
-                    successFlag = await post_model.editPost(postId, text, '')
+                    successFlag = await post_model.getInstance().editPost(postId, text, '')
                 }
             }
             setLoading(false)
@@ -127,7 +123,7 @@ const AddPostScreen: FC<{ route: any, navigation: any }> = ({ route, navigation 
                 setImgUri(route.params?.img)
                 setPostId(route.params?.postId)
             }
-            else{
+            else {
                 setImgUri('')
                 setText('')
             }
@@ -192,7 +188,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: 'column',
-        backgroundColor: '#aff',
+        backgroundColor: myColors.mainBackground,
         justifyContent: 'flex-start',
     },
     avatar: {
@@ -212,6 +208,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         padding: 10,
         alignItems: 'center',
+        borderColor: myColors.tabIcon
     },
     modalView: {
         flexDirection: "row",
