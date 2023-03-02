@@ -78,7 +78,7 @@ const AppStack = () => {
     </Tab.Navigator >
   )
 }
-const Loading = (message: string) => {
+const Loading = () => {
   return (
     <View
       style={{
@@ -98,7 +98,7 @@ const App: FC = () => {
     if (logged) MySocket.getInstance().createSocket()
   }, [logged])
 
-  if (loading) return Loading('main')
+  if (loading) return Loading()
   return (
     <NavigationContainer>
       {logged == true ? <AppStack /> : <AuthStack />}
